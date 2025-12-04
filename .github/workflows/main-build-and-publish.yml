@@ -1,0 +1,40 @@
+name: Main build and publish
+
+on:
+  push:
+    branches:
+      - main
+      - 'ci/**'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Build jar and run integration tests
+        run: ./mvnw clean package verify
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.actor }}/cubix/1/optional/app:springboot
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
